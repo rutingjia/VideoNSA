@@ -2198,15 +2198,6 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                 position_ids = position_ids.add(delta)
                 position_ids = position_ids.unsqueeze(0).expand(3, -1, -1)
 
-        # Track LLM prefilling runtime (excluding vision processing)
-        llm_prefill_start_time = None
-        # Check if this is the prefill phase: either no past_key_values or empty cache
-        is_prefill_phase = (past_key_values is None or
-                           (hasattr(past_key_values, 'get_seq_length') and past_key_values.get_seq_length() == 0))
-
-        if hasattr(self, '_track_prefill_runtime') and self._track_prefill_runtime and is_prefill_phase:
-            llm_prefill_start_time = time.time()
-            torch.cuda.synchronize() if torch.cuda.is_available() else None
 
         outputs = self.language_model(
             input_ids=None,
@@ -2221,19 +2212,6 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
             cache_position=cache_position,
         )
 
-        # Record LLM prefilling end time
-        if llm_prefill_start_time is not None:
-            torch.cuda.synchronize() if torch.cuda.is_available() else None
-            llm_prefill_end_time = time.time()
-            llm_prefill_runtime = llm_prefill_end_time - llm_prefill_start_time
-            self._prefill_runtime = llm_prefill_runtime  # Store for parent class
-            # Use both print and logger to ensure visibility in distributed settings
-            print(f"LLM_PREFILL_RUNTIME: {llm_prefill_runtime:.6f} seconds")
-            import sys
-            sys.stdout.flush()  # Force flush stdout
-            # Also write to stderr which is more likely to be captured
-            print(f"LLM_PREFILL_RUNTIME: {llm_prefill_runtime:.6f} seconds", file=sys.stderr)
-            sys.stderr.flush()
 
         output = Qwen2_5_VLModelOutputWithPast(
             last_hidden_state=outputs.last_hidden_state,
