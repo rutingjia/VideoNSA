@@ -511,6 +511,13 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
     pass
 
 
+QWEN3_VL_ATTENTION_CLASSES = {
+    "eager": Qwen3VLTextAttention,
+    "flash_attention_2": Qwen3_VLMixNSA,
+    "sdpa": Qwen3VLTextAttention,
+}
+
+
 class Qwen3VLTextMLP(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -532,10 +539,7 @@ class Qwen3VLTextDecoderLayer(GradientCheckpointingLayer):
         super().__init__()
         self.hidden_size = config.hidden_size
 
-        if config._attn_implementation == "flash_attention_2":
-            self.self_attn = Qwen3_VLMixNSA(config=config, layer_idx=layer_idx)
-        else:
-            self.self_attn = Qwen3VLTextAttention(config=config, layer_idx=layer_idx)
+        self.self_attn = QWEN3_VL_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
 
         self.mlp = Qwen3VLTextMLP(config)
         self.input_layernorm = Qwen3VLTextRMSNorm(config.hidden_size, eps=config.rms_norm_eps)

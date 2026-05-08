@@ -365,15 +365,18 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
     pass
 
 
+QWEN3_VL_ATTENTION_CLASSES = {
+    "eager": Qwen3VLTextAttention,
+    "flash_attention_2": Qwen3_VLMixNSA,
+    "sdpa": Qwen3VLTextAttention,
+}
+
 class Qwen3VLTextDecoderLayer(Qwen3DecoderLayer):
     def __init__(self, config: Qwen3VLTextConfig, layer_idx: int):
         super().__init__(config, layer_idx)
         del self.attention_type
 
-        if config._attn_implementation == "flash_attention_2":
-            self.self_attn = Qwen3_VLMixNSA(config=config, layer_idx=layer_idx)
-        else:
-            self.self_attn = Qwen3VLTextAttention(config=config, layer_idx=layer_idx)
+        self.self_attn = QWEN3_VL_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
 
     def forward(
         self,
