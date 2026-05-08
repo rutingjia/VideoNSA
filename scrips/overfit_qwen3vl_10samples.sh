@@ -12,8 +12,8 @@ set -euo pipefail
 #   LR=1e-5
 
 export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-export VIDEO_MAX_PIXELS=${VIDEO_MAX_PIXELS:-50176}
-export FPS_MAX_FRAMES=${FPS_MAX_FRAMES:-12}
+export VIDEO_MAX_PIXELS=${VIDEO_MAX_PIXELS:-16384}
+export FPS_MAX_FRAMES=${FPS_MAX_FRAMES:-4}
 
 MODEL=${MODEL:-Qwen/Qwen3-VL-2B-Instruct}
 DATASET=${DATASET:-/data/vjuicefs_ai_camera_album_ql/public_data/rutingjia/qwen3vl_video_sft/train.jsonl}
@@ -41,5 +41,5 @@ swift sft \
   --logging_steps 1 \
   --max_length 2048 \
   --warmup_ratio 0.0 \
-  --dataloader_num_workers 2 \
+  --dataloader_num_workers 0 \
   --output_dir "$OUT_DIR"
