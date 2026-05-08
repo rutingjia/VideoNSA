@@ -420,32 +420,21 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
 
         return torch.zeros(bsz, seq_len, dtype=torch.bool, device=device)
 
-    def forward(
+    def _mixed_attention(
         self,
+        query_states: torch.Tensor,
+        key_states: torch.Tensor,
+        value_states: torch.Tensor,
+        is_vision_tokens: torch.Tensor,
         hidden_states: torch.Tensor,
-        position_embeddings: tuple[torch.Tensor, torch.Tensor],
         attention_mask: torch.Tensor | None,
-        past_key_values: Cache | None = None,
         **kwargs: Unpack[FlashAttentionKwargs],
-    ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        input_shape = hidden_states.shape[:-1]
-        bsz, q_len = input_shape
-        hidden_shape = (*input_shape, -1, self.head_dim)
-        is_vision_tokens = self._detect_token_types(
-            hidden_states, kwargs.get("position_ids"), kwargs.get("visual_pos_masks")
-        )
-
-        query_states = self.q_norm(self.q_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
-        key_states = self.k_norm(self.k_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
-        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
-        cos, sin = position_embeddings
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-        if past_key_values is not None:
-            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)
-
+    ) -> torch.Tensor:
+        bsz, q_len = hidden_states.shape[:2]
         vision_mask = is_vision_tokens[:, None, :, None].expand_as(query_states)
         text_mask = ~vision_mask
         zeros = torch.zeros_like(query_states)
+
         vision_only_q = torch.where(vision_mask, query_states, zeros)
         vision_only_k = torch.where(vision_mask, key_states, torch.zeros_like(key_states))
         vision_only_v = torch.where(vision_mask, value_states, torch.zeros_like(value_states))
@@ -486,7 +475,39 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
             scaling=self.scaling,
             **kwargs,
         )
-        attn_output = nsa_output + text_output
+        return nsa_output + text_output
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor],
+        attention_mask: torch.Tensor | None,
+        past_key_values: Cache | None = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        input_shape = hidden_states.shape[:-1]
+        bsz, q_len = input_shape
+        hidden_shape = (*input_shape, -1, self.head_dim)
+        is_vision_tokens = self._detect_token_types(
+            hidden_states, kwargs.get("position_ids"), kwargs.get("visual_pos_masks")
+        )
+
+        query_states = self.q_norm(self.q_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
+        key_states = self.k_norm(self.k_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
+        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        cos, sin = position_embeddings
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        if past_key_values is not None:
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)
+        attn_output = self._mixed_attention(
+            query_states=query_states,
+            key_states=key_states,
+            value_states=value_states,
+            is_vision_tokens=is_vision_tokens,
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            **kwargs,
+        )
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         return self.o_proj(attn_output), None
 
