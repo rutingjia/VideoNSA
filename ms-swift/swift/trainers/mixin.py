@@ -670,26 +670,11 @@ class SwiftMixin:
         # gradient_checkpointing
         gradient_checkpointing = self.args.gradient_checkpointing
         self._prepare_gradient_checkpointing(self.accelerator.unwrap_model(self.model))
-        try:
-            with self.hub.patch_hub(), self._fix_grad_norm_nan(), self._patch_skip_first_batches(
-            ), self._patch_deepspeed_load_checkpoint():
-                res = super().train(*args, **kwargs)
-        except RuntimeError as e:
-            error_message = str(e)
-            if 'CUDNN_STATUS_NOT_INITIALIZED' in error_message:
-                hint = (
-                    '\n\nDetected cuDNN initialization failure while training. This is usually caused by '
-                    'GPU memory pressure or an incompatible CUDA/cuDNN runtime. Please try: '
-                    '(1) reduce `--per_device_train_batch_size`, `--max_pixels`, or video frames; '
-                    '(2) set `--dataloader_num_workers 0`; '
-                    '(3) verify `torch.version.cuda` matches the NVIDIA driver runtime; '
-                    '(4) enable `CUDA_LAUNCH_BLOCKING=1` to locate the first failing op.'
-                )
-                raise RuntimeError(error_message + hint) from e
-            raise
-        finally:
-            self.template.remove_post_encode_hook()
-            self.args.gradient_checkpointing = gradient_checkpointing  # recover
+        with self.hub.patch_hub(), self._fix_grad_norm_nan(), self._patch_skip_first_batches(
+        ), self._patch_deepspeed_load_checkpoint():
+            res = super().train(*args, **kwargs)
+        self.template.remove_post_encode_hook()
+        self.args.gradient_checkpointing = gradient_checkpointing  # recover
         return res
 
     def push_to_hub(self, *args, **kwargs):
