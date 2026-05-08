@@ -362,7 +362,34 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
     add the NSA logic without changing the decoder wiring again.
     """
 
-    pass
+    def _detect_token_types(
+        self,
+        hidden_states: torch.Tensor,
+        position_ids: torch.LongTensor | None = None,
+        visual_pos_masks: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Return vision-token mask with shape [batch_size, seq_len].
+
+        Priority:
+        1) Use `visual_pos_masks` directly when available (Qwen3-VL native mask).
+        2) Fallback to multimodal position ids ([3, bsz, seq_len]): (t, h, w).
+        3) Otherwise treat all tokens as text.
+        """
+        bsz, seq_len, _ = hidden_states.shape
+        device = hidden_states.device
+
+        if visual_pos_masks is not None:
+            return visual_pos_masks.to(device=device, dtype=torch.bool)
+
+        if position_ids is None:
+            return torch.zeros(bsz, seq_len, dtype=torch.bool, device=device)
+
+        if position_ids.dim() == 3 and position_ids.shape[0] == 3:
+            t_pos, h_pos, w_pos = position_ids[0], position_ids[1], position_ids[2]
+            is_text = (t_pos == h_pos) & (t_pos == w_pos) & (h_pos == w_pos)
+            return ~is_text
+
+        return torch.zeros(bsz, seq_len, dtype=torch.bool, device=device)
 
 
 class Qwen3VLTextDecoderLayer(Qwen3DecoderLayer):
