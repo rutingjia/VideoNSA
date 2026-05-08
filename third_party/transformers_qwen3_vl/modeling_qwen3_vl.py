@@ -505,6 +505,12 @@ class Qwen3VLTextAttention(nn.Module):
         return attn_output, attn_weights
 
 
+class Qwen3_VLMixNSA(Qwen3VLTextAttention):
+    """Placeholder Mixed-NSA attention for decoder self-attn routing."""
+
+    pass
+
+
 class Qwen3VLTextMLP(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -526,7 +532,10 @@ class Qwen3VLTextDecoderLayer(GradientCheckpointingLayer):
         super().__init__()
         self.hidden_size = config.hidden_size
 
-        self.self_attn = Qwen3VLTextAttention(config=config, layer_idx=layer_idx)
+        if config._attn_implementation == "flash_attention_2":
+            self.self_attn = Qwen3_VLMixNSA(config=config, layer_idx=layer_idx)
+        else:
+            self.self_attn = Qwen3VLTextAttention(config=config, layer_idx=layer_idx)
 
         self.mlp = Qwen3VLTextMLP(config)
         self.input_layernorm = Qwen3VLTextRMSNorm(config.hidden_size, eps=config.rms_norm_eps)

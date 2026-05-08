@@ -354,10 +354,26 @@ class Qwen3VLTextAttention(Qwen3Attention):
         return attn_output, attn_weights
 
 
+class Qwen3_VLMixNSA(Qwen3VLTextAttention):
+    """Placeholder mixed-attention class for Qwen3-VL decoder self-attn path.
+
+    This class is intentionally separate from Qwen3VLTextAttention so we can
+    route `flash_attention_2` through a dedicated implementation and incrementally
+    add the NSA logic without changing the decoder wiring again.
+    """
+
+    pass
+
+
 class Qwen3VLTextDecoderLayer(Qwen3DecoderLayer):
     def __init__(self, config: Qwen3VLTextConfig, layer_idx: int):
         super().__init__(config, layer_idx)
         del self.attention_type
+
+        if config._attn_implementation == "flash_attention_2":
+            self.self_attn = Qwen3_VLMixNSA(config=config, layer_idx=layer_idx)
+        else:
+            self.self_attn = Qwen3VLTextAttention(config=config, layer_idx=layer_idx)
 
     def forward(
         self,
