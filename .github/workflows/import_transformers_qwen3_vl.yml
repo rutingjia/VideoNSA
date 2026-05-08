@@ -1,0 +1,45 @@
+name: Import Qwen3-VL code from Transformers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-qwen3-vl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout my repo
+        uses: actions/checkout@v4
+
+      - name: Clone Hugging Face Transformers
+        run: |
+          rm -rf /tmp/transformers
+          git clone --depth 1 https://github.com/huggingface/transformers.git /tmp/transformers
+
+      - name: Copy qwen3_vl source code
+        run: |
+          mkdir -p third_party/transformers_qwen3_vl
+
+          rsync -av \
+            --exclude='__pycache__' \
+            /tmp/transformers/src/transformers/models/qwen3_vl/ \
+            third_party/transformers_qwen3_vl/
+
+          cp /tmp/transformers/LICENSE third_party/TRANSFORMERS_LICENSE
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add third_party/transformers_qwen3_vl third_party/TRANSFORMERS_LICENSE
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Add Qwen3-VL source code from Transformers"
+            git push
+          fi
