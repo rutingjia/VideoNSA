@@ -355,12 +355,41 @@ class Qwen3VLTextAttention(Qwen3Attention):
 
 
 class Qwen3_VLMixNSA(Qwen3VLTextAttention):
-    """Placeholder mixed-attention class for Qwen3-VL decoder self-attn path.
+    """Mixed attention: vision tokens use NSA, text tokens use dense attention."""
 
-    This class is intentionally separate from Qwen3VLTextAttention so we can
-    route `flash_attention_2` through a dedicated implementation and incrementally
-    add the NSA logic without changing the decoder wiring again.
-    """
+    def __init__(
+        self,
+        config: Qwen3VLTextConfig,
+        layer_idx: int,
+        block_size: int = 64,
+        block_counts: int = 32,
+        window_size: int = 256,
+    ):
+        super().__init__(config, layer_idx)
+        self.block_size = block_size
+        self.block_counts = block_counts
+        self.window_size = window_size
+
+        self.gate_temperature = 0.3
+        self.g_proj_1 = nn.Linear(self.hidden_size, self.hidden_size, bias=True)
+        self.g_proj_2 = nn.Linear(self.hidden_size, self.num_heads * 3, bias=True)
+        self._reset_gate_initialization()
+
+    def _reset_gate_initialization(self) -> None:
+        if self.g_proj_2.bias.device.type == "meta":
+            return
+        nn.init.normal_(self.g_proj_1.weight, mean=0.0, std=0.02)
+        nn.init.constant_(self.g_proj_1.bias, 0.0)
+        nn.init.normal_(self.g_proj_2.weight, mean=0.0, std=0.02)
+        target_prob = 0.5
+        logit_val = torch.log(torch.tensor(target_prob) / (1 - target_prob))
+        output_bias = torch.full(
+            (self.num_heads * 3,),
+            logit_val,
+            device=self.g_proj_2.bias.device,
+            dtype=self.g_proj_2.bias.dtype,
+        )
+        self.g_proj_2.bias.copy_(output_bias)
 
     def _detect_token_types(
         self,
@@ -390,6 +419,76 @@ class Qwen3_VLMixNSA(Qwen3VLTextAttention):
             return ~is_text
 
         return torch.zeros(bsz, seq_len, dtype=torch.bool, device=device)
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor],
+        attention_mask: torch.Tensor | None,
+        past_key_values: Cache | None = None,
+        **kwargs: Unpack[FlashAttentionKwargs],
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        input_shape = hidden_states.shape[:-1]
+        bsz, q_len = input_shape
+        hidden_shape = (*input_shape, -1, self.head_dim)
+        is_vision_tokens = self._detect_token_types(
+            hidden_states, kwargs.get("position_ids"), kwargs.get("visual_pos_masks")
+        )
+
+        query_states = self.q_norm(self.q_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
+        key_states = self.k_norm(self.k_proj(hidden_states).view(hidden_shape)).transpose(1, 2)
+        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        cos, sin = position_embeddings
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+        if past_key_values is not None:
+            key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)
+
+        vision_mask = is_vision_tokens[:, None, :, None].expand_as(query_states)
+        text_mask = ~vision_mask
+        zeros = torch.zeros_like(query_states)
+        vision_only_q = torch.where(vision_mask, query_states, zeros)
+        vision_only_k = torch.where(vision_mask, key_states, torch.zeros_like(key_states))
+        vision_only_v = torch.where(vision_mask, value_states, torch.zeros_like(value_states))
+
+        gate_hidden = F.gelu(self.g_proj_1(hidden_states))
+        gates = self.g_proj_2(gate_hidden).view(bsz, q_len, self.num_heads, 3) / self.gate_temperature
+        vision_gate_mask = is_vision_tokens.unsqueeze(2).unsqueeze(3).expand_as(gates)
+        vision_only_gates = torch.where(vision_gate_mask, gates, torch.zeros_like(gates))
+        g_cmp, g_slc, g_swa = vision_only_gates.sigmoid().unbind(-1)
+
+        from nsa.nsa import nsa_func
+
+        nsa_output = nsa_func(
+            vision_only_q.transpose(1, 2),
+            vision_only_k.transpose(1, 2),
+            vision_only_v.transpose(1, 2),
+            g_cmp=g_cmp,
+            g_slc=g_slc,
+            g_swa=g_swa,
+            block_count=self.block_counts,
+            block_size=self.block_size,
+            window_size=self.window_size,
+            scale=self.scaling,
+            layer_idx=self.layer_idx,
+        ).transpose(1, 2)
+
+        text_only_q = torch.where(text_mask, query_states, zeros)
+        attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(
+            self.config._attn_implementation, eager_attention_forward
+        )
+        text_output, _ = attention_interface(
+            self,
+            text_only_q,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout=0.0 if not self.training else self.attention_dropout,
+            scaling=self.scaling,
+            **kwargs,
+        )
+        attn_output = nsa_output + text_output
+        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        return self.o_proj(attn_output), None
 
 
 class Qwen3VLTextDecoderLayer(Qwen3DecoderLayer):
