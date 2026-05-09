@@ -91,6 +91,35 @@ def get_model_tokenizer_videonsa(*args, **kwargs):
     return get_model_tokenizer_qwen2_vl(*args, **kwargs)
 
 
+def get_model_tokenizer_qwen3_vl(model_dir: str, *args, **kwargs):
+    from transformers import AutoProcessor
+    from third_party.transformers_qwen3_vl.configuration_qwen3_vl import (
+        Qwen3VLConfig, Qwen3VLTextConfig, Qwen3VLVisionConfig)
+
+    processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
+    kwargs['tokenizer'] = getattr(processor, 'tokenizer', processor)
+    model_config = kwargs.get('model_config') or Qwen3VLConfig.from_pretrained(model_dir, trust_remote_code=True)
+    if isinstance(getattr(model_config, 'vision_config', None), dict):
+        model_config.vision_config = Qwen3VLVisionConfig(**model_config.vision_config)
+    if isinstance(getattr(model_config, 'text_config', None), dict):
+        model_config.text_config = Qwen3VLTextConfig(**model_config.text_config)
+    kwargs['model_config'] = model_config
+    model, _ = get_model_tokenizer_with_flash_attn(model_dir, *args, **kwargs)
+    if model is not None:
+        base_model = model.model if 'AWQ' in model.__class__.__name__ else model
+        if hasattr(base_model.model, 'embed_tokens'):
+            embed_tokens = base_model.model.embed_tokens
+        else:
+            embed_tokens = base_model.model.language_model.embed_tokens
+        patch_output_clone(embed_tokens)
+        patch_output_to_input_device(embed_tokens)
+        patch_get_input_embeddings(base_model.visual, 'patch_embed')
+
+    from qwen_vl_utils import vision_process
+    patch_qwen_vl_utils(vision_process)
+    return model, processor
+
+
 def get_model_tokenizer_videonsa_qwen3(*args, **kwargs):
     root = Path(__file__).resolve().parents[5]
     if str(root) not in sys.path:
@@ -99,7 +128,7 @@ def get_model_tokenizer_videonsa_qwen3(*args, **kwargs):
     from third_party.transformers_qwen3_vl.modeling_qwen3_vl import Qwen3VLForConditionalGeneration
 
     kwargs['automodel_class'] = Qwen3VLForConditionalGeneration
-    return get_model_tokenizer_qwen2_vl(*args, **kwargs)
+    return get_model_tokenizer_qwen3_vl(*args, **kwargs)
 
 
 register_model(
