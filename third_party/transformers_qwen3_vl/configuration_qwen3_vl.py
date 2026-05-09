@@ -19,14 +19,14 @@
 # limitations under the License.
 from huggingface_hub.dataclasses import strict
 
-from ...configuration_utils import PreTrainedConfig
-from ...modeling_rope_utils import RopeParameters
-from ...utils import auto_docstring
+from transformers.configuration_utils import PretrainedConfig
+from transformers.modeling_rope_utils import RopeParameters
+from transformers.utils import auto_docstring
 
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
 @strict
-class Qwen3VLVisionConfig(PreTrainedConfig):
+class Qwen3VLVisionConfig(PretrainedConfig):
     r"""
     out_hidden_size (`int`, *optional*, defaults to 3584):
         The output hidden size of the vision model.
@@ -56,7 +56,7 @@ class Qwen3VLVisionConfig(PreTrainedConfig):
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
 @strict
-class Qwen3VLTextConfig(PreTrainedConfig):
+class Qwen3VLTextConfig(PretrainedConfig):
     r"""
     Example:
 
@@ -104,7 +104,7 @@ class Qwen3VLTextConfig(PreTrainedConfig):
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
 @strict
-class Qwen3VLConfig(PreTrainedConfig):
+class Qwen3VLConfig(PretrainedConfig):
     r"""
     Example:
 
@@ -125,8 +125,8 @@ class Qwen3VLConfig(PreTrainedConfig):
     sub_configs = {"vision_config": Qwen3VLVisionConfig, "text_config": Qwen3VLTextConfig}
     keys_to_ignore_at_inference = ["past_key_values"]
 
-    text_config: dict | PreTrainedConfig | None = None
-    vision_config: dict | PreTrainedConfig | None = None
+    text_config: dict | PretrainedConfig | None = None
+    vision_config: dict | PretrainedConfig | None = None
     image_token_id: int = 151655
     video_token_id: int = 151656
     vision_start_token_id: int = 151652
