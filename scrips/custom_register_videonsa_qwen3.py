@@ -28,5 +28,6 @@ register_model(
         architectures=['Qwen3VLForConditionalGeneration'],
         requires=['transformers>=4.55', 'qwen_vl_utils>=0.0.6', 'decord'],
         tags=['vision', 'video'],
-    )
+    ),
+    exist_ok=True,
 )

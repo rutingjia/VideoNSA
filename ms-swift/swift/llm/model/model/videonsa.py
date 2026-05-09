@@ -1,8 +1,6 @@
 # Copyright (c) Alibaba, Inc. and its affiliates.
 import os
-import importlib.util
 import sys
-import types
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Type
 
@@ -94,22 +92,12 @@ def get_model_tokenizer_videonsa(*args, **kwargs):
 
 
 def get_model_tokenizer_videonsa_qwen3(*args, **kwargs):
-    module_name = 'transformers.models.qwen3_vl.modeling_qwen3_vl'
-    if module_name not in sys.modules:
-        pkg_qwen3_name = 'transformers.models.qwen3_vl'
-        if pkg_qwen3_name not in sys.modules:
-            pkg = types.ModuleType(pkg_qwen3_name)
-            pkg.__path__ = []
-            sys.modules[pkg_qwen3_name] = pkg
+    root = Path(__file__).resolve().parents[5]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
 
-        root = Path(__file__).resolve().parents[5]
-        local_modeling = root / 'third_party' / 'transformers_qwen3_vl' / 'modeling_qwen3_vl.py'
-        spec = importlib.util.spec_from_file_location(module_name, local_modeling)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
+    from third_party.transformers_qwen3_vl.modeling_qwen3_vl import Qwen3VLForConditionalGeneration
 
-    from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLForConditionalGeneration
     kwargs['automodel_class'] = Qwen3VLForConditionalGeneration
     return get_model_tokenizer_qwen2_vl(*args, **kwargs)
 
