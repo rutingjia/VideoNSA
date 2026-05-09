@@ -21,14 +21,24 @@
 import numpy as np
 
 from transformers.feature_extraction_utils import BatchFeature
+from transformers.models.auto import AutoImageProcessor, AutoTokenizer
 from transformers.image_utils import ImageInput
 from transformers.processing_utils import MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
-from transformers.utils import auto_docstring, logging
+from transformers.utils import logging
 from transformers.video_utils import VideoInput
 
 
 logger = logging.get_logger(__name__)
+
+
+def auto_docstring(*args, **kwargs):
+    def _decorator(obj):
+        return obj
+
+    if args and len(args) == 1 and callable(args[0]) and not kwargs:
+        return args[0]
+    return _decorator
 
 
 class Qwen3VLProcessorKwargs(ProcessingKwargs, total=False):
@@ -44,6 +54,23 @@ class Qwen3VLProcessorKwargs(ProcessingKwargs, total=False):
 
 @auto_docstring
 class Qwen3VLProcessor(ProcessorMixin):
+    attributes = ["image_processor", "tokenizer"]
+    valid_kwargs = ["chat_template"]
+
+    image_processor_class = "AutoImageProcessor"
+    tokenizer_class = ("Qwen2Tokenizer", "Qwen2TokenizerFast")
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+        trust_remote_code = kwargs.pop("trust_remote_code", None)
+        image_processor = AutoImageProcessor.from_pretrained(
+            pretrained_model_name_or_path, trust_remote_code=trust_remote_code, **kwargs
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path, trust_remote_code=trust_remote_code, **kwargs
+        )
+        return cls(image_processor=image_processor, tokenizer=tokenizer, video_processor=image_processor, **kwargs)
+
     def __init__(self, image_processor=None, tokenizer=None, video_processor=None, chat_template=None, **kwargs):
         self.image_token = "<|image_pad|>" if not hasattr(tokenizer, "image_token") else tokenizer.image_token
         self.video_token = "<|video_pad|>" if not hasattr(tokenizer, "video_token") else tokenizer.video_token
@@ -57,7 +84,8 @@ class Qwen3VLProcessor(ProcessorMixin):
             if getattr(tokenizer, "video_token_id", None)
             else tokenizer.convert_tokens_to_ids(self.video_token)
         )
-        super().__init__(image_processor, tokenizer, video_processor, chat_template=chat_template)
+        super().__init__(image_processor, tokenizer, chat_template=chat_template)
+        self.video_processor = video_processor if video_processor is not None else image_processor
         self.vision_start_token = (
             "<|vision_start|>" if not hasattr(tokenizer, "vision_start_token") else tokenizer.vision_start_token
         )
