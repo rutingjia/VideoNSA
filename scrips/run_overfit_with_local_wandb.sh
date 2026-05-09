@@ -8,6 +8,7 @@ set -euo pipefail
 #   WANDB_PROJECT=videonsa-overfit
 #   WANDB_RUN_NAME=qwen3vl-overfit-10samples
 #   MODEL_TYPE=videonsa_qwen3
+#   CUSTOM_REGISTER_PATH=scrips/custom_register_videonsa_qwen3.py
 #   ATTN_IMPL=flash_attention_2
 #   TRAIN_TYPE=full
 #   FREEZE_VIT=false
@@ -17,6 +18,7 @@ set -euo pipefail
 export WANDB_PROJECT=${WANDB_PROJECT:-videonsa-overfit}
 export WANDB_RUN_NAME=${WANDB_RUN_NAME:-qwen3vl-overfit-10samples}
 export MODEL_TYPE=${MODEL_TYPE:-videonsa_qwen3}
+export CUSTOM_REGISTER_PATH=${CUSTOM_REGISTER_PATH:-scrips/custom_register_videonsa_qwen3.py}
 export ATTN_IMPL=${ATTN_IMPL:-flash_attention_2}
 export TRAIN_TYPE=${TRAIN_TYPE:-full}
 export FREEZE_VIT=${FREEZE_VIT:-false}
