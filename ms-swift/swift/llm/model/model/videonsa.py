@@ -93,12 +93,17 @@ def get_model_tokenizer_videonsa(*args, **kwargs):
 
 def get_model_tokenizer_qwen3_vl(model_dir: str, *args, **kwargs):
     from transformers import AutoProcessor
-    from third_party.transformers_qwen3_vl.configuration_qwen3_vl import Qwen3VLConfig
+    from third_party.transformers_qwen3_vl.configuration_qwen3_vl import (
+        Qwen3VLConfig, Qwen3VLTextConfig, Qwen3VLVisionConfig)
 
     processor = AutoProcessor.from_pretrained(model_dir, trust_remote_code=True)
     kwargs['tokenizer'] = getattr(processor, 'tokenizer', processor)
-    kwargs['model_config'] = kwargs.get('model_config') or Qwen3VLConfig.from_pretrained(
-        model_dir, trust_remote_code=True)
+    model_config = kwargs.get('model_config') or Qwen3VLConfig.from_pretrained(model_dir, trust_remote_code=True)
+    if isinstance(getattr(model_config, 'vision_config', None), dict):
+        model_config.vision_config = Qwen3VLVisionConfig(**model_config.vision_config)
+    if isinstance(getattr(model_config, 'text_config', None), dict):
+        model_config.text_config = Qwen3VLTextConfig(**model_config.text_config)
+    kwargs['model_config'] = model_config
     model, _ = get_model_tokenizer_with_flash_attn(model_dir, *args, **kwargs)
     if model is not None:
         base_model = model.model if 'AWQ' in model.__class__.__name__ else model
