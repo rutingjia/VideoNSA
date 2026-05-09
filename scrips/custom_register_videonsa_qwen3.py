@@ -7,7 +7,7 @@ from pathlib import Path
 
 from swift.llm import TemplateType
 from swift.llm.model.constant import MLLMModelType
-from swift.llm.model.model.qwen2_vl import get_model_tokenizer_qwen2_vl
+from swift.llm.model.model.qwen import get_model_tokenizer_qwen2_vl
 from swift.llm.model.model_arch import ModelArch
 from swift.llm.model.register import Model, ModelGroup, ModelMeta, register_model
 
