@@ -17,15 +17,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from huggingface_hub.dataclasses import strict
+from typing import Any
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.modeling_rope_utils import RopeParameters
-from transformers.utils import auto_docstring
+
+
+def auto_docstring(*args, **kwargs):
+    def _decorator(obj):
+        return obj
+
+    return _decorator
 
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
-@strict
 class Qwen3VLVisionConfig(PretrainedConfig):
     r"""
     out_hidden_size (`int`, *optional*, defaults to 3584):
@@ -55,7 +59,6 @@ class Qwen3VLVisionConfig(PretrainedConfig):
 
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
-@strict
 class Qwen3VLTextConfig(PretrainedConfig):
     r"""
     Example:
@@ -90,7 +93,7 @@ class Qwen3VLTextConfig(PretrainedConfig):
     initializer_range: float = 0.02
     rms_norm_eps: float = 1e-6
     use_cache: bool = True
-    rope_parameters: RopeParameters | dict | None = None
+    rope_parameters: Any | dict | None = None
     attention_bias: bool = False
     attention_dropout: float | int = 0.0
     pad_token_id: int | None = None
@@ -103,7 +106,6 @@ class Qwen3VLTextConfig(PretrainedConfig):
 
 
 @auto_docstring(checkpoint="Qwen/Qwen3-VL-4B-Instruct")
-@strict
 class Qwen3VLConfig(PretrainedConfig):
     r"""
     Example:
