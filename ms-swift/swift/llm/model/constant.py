@@ -148,6 +148,7 @@ class RMModelType:
 
 class MLLMModelType:
     videonsa = 'videonsa'
+    videonsa_qwen3 = 'videonsa_qwen3'
     qwen_vl = 'qwen_vl'
     qwen_audio = 'qwen_audio'
     qwen2_vl = 'qwen2_vl'
