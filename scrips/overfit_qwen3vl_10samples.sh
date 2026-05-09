@@ -30,11 +30,16 @@ MAX_STEPS=${MAX_STEPS:-2000}
 MODEL_TYPE=${MODEL_TYPE:-videonsa_qwen3}
 ATTN_IMPL=${ATTN_IMPL:-flash_attention_2}
 LR=${LR:-1e-5}
+TRAIN_TYPE=${TRAIN_TYPE:-full}
+FREEZE_VIT=${FREEZE_VIT:-false}
+FREEZE_ALIGNER=${FREEZE_ALIGNER:-false}
+FREEZE_LLM=${FREEZE_LLM:-false}
 
 swift sft \
   --model "$MODEL" \
   --dataset "$DATASET" \
   --model_type "$MODEL_TYPE" \
+  --train_type "$TRAIN_TYPE" \
   --attn_impl "$ATTN_IMPL" \
   --torch_dtype bfloat16 \
   --num_train_epochs 1 \
@@ -43,7 +48,9 @@ swift sft \
   --per_device_eval_batch_size 1 \
   --gradient_accumulation_steps 1 \
   --learning_rate "$LR" \
-  --freeze_vit true \
+  --freeze_vit "$FREEZE_VIT" \
+  --freeze_aligner "$FREEZE_ALIGNER" \
+  --freeze_llm "$FREEZE_LLM" \
   --split_dataset_ratio 0 \
   --eval_strategy no \
   --save_strategy steps \
