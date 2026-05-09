@@ -11,6 +11,10 @@ set -euo pipefail
 #   WANDB_API_KEY=<your_key_if_needed>
 #   MODEL_TYPE=videonsa_qwen3
 #   ATTN_IMPL=flash_attention_2
+#   TRAIN_TYPE=full
+#   FREEZE_VIT=false
+#   FREEZE_ALIGNER=false
+#   FREEZE_LLM=false
 
 WANDB_LOCAL_PORT=${WANDB_LOCAL_PORT:-8080}
 export WANDB_BASE_URL=${WANDB_BASE_URL:-http://127.0.0.1:${WANDB_LOCAL_PORT}}
@@ -18,6 +22,10 @@ export WANDB_PROJECT=${WANDB_PROJECT:-videonsa-overfit}
 export WANDB_RUN_NAME=${WANDB_RUN_NAME:-qwen3vl-overfit-10samples}
 export MODEL_TYPE=${MODEL_TYPE:-videonsa_qwen3}
 export ATTN_IMPL=${ATTN_IMPL:-flash_attention_2}
+export TRAIN_TYPE=${TRAIN_TYPE:-full}
+export FREEZE_VIT=${FREEZE_VIT:-false}
+export FREEZE_ALIGNER=${FREEZE_ALIGNER:-false}
+export FREEZE_LLM=${FREEZE_LLM:-false}
 
 if ! command -v wandb >/dev/null 2>&1; then
   echo "[ERROR] wandb CLI 未安装，请先安装：pip install wandb"
