@@ -24,11 +24,20 @@ from transformers.feature_extraction_utils import BatchFeature
 from transformers.image_utils import ImageInput
 from transformers.processing_utils import MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
-from transformers.utils import auto_docstring, logging
+from transformers.utils import logging
 from transformers.video_utils import VideoInput
 
 
 logger = logging.get_logger(__name__)
+
+
+def auto_docstring(*args, **kwargs):
+    def _decorator(obj):
+        return obj
+
+    if args and len(args) == 1 and callable(args[0]) and not kwargs:
+        return args[0]
+    return _decorator
 
 
 class Qwen3VLProcessorKwargs(ProcessingKwargs, total=False):
