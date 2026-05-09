@@ -53,11 +53,10 @@ class Qwen3VLProcessorKwargs(ProcessingKwargs, total=False):
 
 @auto_docstring
 class Qwen3VLProcessor(ProcessorMixin):
-    attributes = ["image_processor", "tokenizer", "video_processor"]
+    attributes = ["image_processor", "tokenizer"]
     valid_kwargs = ["chat_template"]
 
     image_processor_class = "AutoImageProcessor"
-    video_processor_class = "AutoVideoProcessor"
     tokenizer_class = ("Qwen2Tokenizer", "Qwen2TokenizerFast")
 
     def __init__(self, image_processor=None, tokenizer=None, video_processor=None, chat_template=None, **kwargs):
@@ -73,7 +72,8 @@ class Qwen3VLProcessor(ProcessorMixin):
             if getattr(tokenizer, "video_token_id", None)
             else tokenizer.convert_tokens_to_ids(self.video_token)
         )
-        super().__init__(image_processor, tokenizer, video_processor, chat_template=chat_template)
+        super().__init__(image_processor, tokenizer, chat_template=chat_template)
+        self.video_processor = video_processor if video_processor is not None else image_processor
         self.vision_start_token = (
             "<|vision_start|>" if not hasattr(tokenizer, "vision_start_token") else tokenizer.vision_start_token
         )
