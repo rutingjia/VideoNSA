@@ -18,12 +18,12 @@ import math
 import numpy as np
 import torch
 
-from ...feature_extraction_utils import BatchFeature
-from ...image_utils import ChannelDimension, PILImageResampling, SizeDict, get_image_size
-from ...processing_utils import Unpack, VideosKwargs
-from ...utils import TensorType, add_start_docstrings, is_torchvision_available, logging
-from ...video_processing_utils import BASE_VIDEO_PROCESSOR_DOCSTRING, BaseVideoProcessor
-from ...video_utils import VideoMetadata, group_videos_by_shape, reorder_videos
+from transformers.feature_extraction_utils import BatchFeature
+from transformers.image_utils import ChannelDimension, PILImageResampling, SizeDict, get_image_size
+from transformers.processing_utils import Unpack, VideosKwargs
+from transformers.utils import TensorType, add_start_docstrings, is_torchvision_available, logging
+from transformers.video_processing_utils import BASE_VIDEO_PROCESSOR_DOCSTRING, BaseVideoProcessor
+from transformers.video_utils import VideoMetadata, group_videos_by_shape, reorder_videos
 
 
 if is_torchvision_available():

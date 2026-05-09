@@ -27,22 +27,68 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ... import initialization as init
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache
-from ...generation import GenerationMixin
-from ...integrations import use_kernel_forward_from_hub, use_kernel_func_from_hub, use_kernelized_func
-from ...masking_utils import create_causal_mask
-from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_outputs import BaseModelOutputWithPast, BaseModelOutputWithPooling, ModelOutput
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...processing_utils import Unpack
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, torch_compilable_check
-from ...utils.generic import is_flash_attention_requested, maybe_autocast, merge_with_config_defaults
-from ...utils.output_capturing import capture_outputs
+from transformers.activations import ACT2FN
+from transformers.cache_utils import Cache, DynamicCache
+from transformers.generation import GenerationMixin
+from transformers.masking_utils import create_causal_mask
+from transformers.modeling_flash_attention_utils import FlashAttentionKwargs
+from transformers.modeling_layers import GradientCheckpointingLayer
+from transformers.modeling_outputs import BaseModelOutputWithPast, BaseModelOutputWithPooling, ModelOutput
+from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
+from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from transformers.processing_utils import Unpack
+from transformers.utils import TransformersKwargs, can_return_tuple
 from .configuration_qwen3_vl import Qwen3VLConfig, Qwen3VLTextConfig, Qwen3VLVisionConfig
+from contextlib import nullcontext
+
+
+def use_kernel_forward_from_hub(_kernel_name: str):
+    def _decorator(obj):
+        return obj
+
+    return _decorator
+
+
+def use_kernel_func_from_hub(_kernel_name: str):
+    def _decorator(obj):
+        return obj
+
+    return _decorator
+
+
+def use_kernelized_func(_func):
+    def _decorator(obj):
+        return obj
+
+    return _decorator
+
+
+def torch_compilable_check(condition: bool, message: str):
+    if not condition:
+        raise ValueError(message)
+
+
+def auto_docstring(*args, **kwargs):
+    def _decorator(obj):
+        return obj
+
+    return _decorator
+
+
+def is_flash_attention_requested(config) -> bool:
+    return getattr(config, "_attn_implementation", None) == "flash_attention_2"
+
+
+def maybe_autocast(device_type=None, enabled=True):
+    return nullcontext()
+
+
+def merge_with_config_defaults(func):
+    return func
+
+
+def capture_outputs(func):
+    return func
 
 
 @auto_docstring
@@ -750,7 +796,7 @@ class Qwen3VLPreTrainedModel(PreTrainedModel):
         super()._init_weights(module)
         if isinstance(module, Qwen3VLVisionRotaryEmbedding):
             inv_freq = 1.0 / (module.theta ** (torch.arange(0, module.dim, 2, dtype=torch.float) / module.dim))
-            init.copy_(module.inv_freq, inv_freq)
+            module.inv_freq.copy_(inv_freq)
 
 
 class Qwen3VLVisionModel(Qwen3VLPreTrainedModel):
