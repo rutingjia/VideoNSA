@@ -10,6 +10,7 @@ set -euo pipefail
 #   OUT_DIR=output/qwen3vl_overfit_10
 #   MAX_STEPS=2000
 #   MODEL_TYPE=videonsa_qwen3
+#   CUSTOM_REGISTER_PATH=scrips/custom_register_videonsa_qwen3.py
 #   ATTN_IMPL=flash_attention_2
 #   LR=1e-5
 #   WANDB_BASE_URL=http://127.0.0.1:8080
@@ -34,11 +35,13 @@ TRAIN_TYPE=${TRAIN_TYPE:-full}
 FREEZE_VIT=${FREEZE_VIT:-false}
 FREEZE_ALIGNER=${FREEZE_ALIGNER:-false}
 FREEZE_LLM=${FREEZE_LLM:-false}
+CUSTOM_REGISTER_PATH=${CUSTOM_REGISTER_PATH:-scrips/custom_register_videonsa_qwen3.py}
 
 swift sft \
   --model "$MODEL" \
   --dataset "$DATASET" \
   --model_type "$MODEL_TYPE" \
+  --custom_register_path "$CUSTOM_REGISTER_PATH" \
   --train_type "$TRAIN_TYPE" \
   --attn_impl "$ATTN_IMPL" \
   --torch_dtype bfloat16 \
