@@ -72,6 +72,11 @@ def auto_docstring(*args, **kwargs):
     def _decorator(obj):
         return obj
 
+    # Support both usages:
+    #   @auto_docstring
+    #   @auto_docstring(...)
+    if args and len(args) == 1 and callable(args[0]) and not kwargs:
+        return args[0]
     return _decorator
 
 
