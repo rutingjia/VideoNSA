@@ -21,6 +21,7 @@
 import numpy as np
 
 from transformers.feature_extraction_utils import BatchFeature
+from transformers.models.auto import AutoImageProcessor, AutoTokenizer
 from transformers.image_utils import ImageInput
 from transformers.processing_utils import MultiModalData, ProcessingKwargs, ProcessorMixin, Unpack
 from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
@@ -58,6 +59,17 @@ class Qwen3VLProcessor(ProcessorMixin):
 
     image_processor_class = "AutoImageProcessor"
     tokenizer_class = ("Qwen2Tokenizer", "Qwen2TokenizerFast")
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
+        trust_remote_code = kwargs.pop("trust_remote_code", None)
+        image_processor = AutoImageProcessor.from_pretrained(
+            pretrained_model_name_or_path, trust_remote_code=trust_remote_code, **kwargs
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path, trust_remote_code=trust_remote_code, **kwargs
+        )
+        return cls(image_processor=image_processor, tokenizer=tokenizer, video_processor=image_processor, **kwargs)
 
     def __init__(self, image_processor=None, tokenizer=None, video_processor=None, chat_template=None, **kwargs):
         self.image_token = "<|image_pad|>" if not hasattr(tokenizer, "image_token") else tokenizer.image_token
