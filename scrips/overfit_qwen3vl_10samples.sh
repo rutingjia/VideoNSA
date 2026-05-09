@@ -35,6 +35,7 @@ swift sft \
   --model "$MODEL" \
   --dataset "$DATASET" \
   --model_type "$MODEL_TYPE" \
+  --train_type full \
   --attn_impl "$ATTN_IMPL" \
   --torch_dtype bfloat16 \
   --num_train_epochs 1 \
@@ -43,7 +44,9 @@ swift sft \
   --per_device_eval_batch_size 1 \
   --gradient_accumulation_steps 1 \
   --learning_rate "$LR" \
-  --freeze_vit true \
+  --freeze_vit false \
+  --freeze_aligner false \
+  --freeze_llm false \
   --split_dataset_ratio 0 \
   --eval_strategy no \
   --save_strategy steps \
