@@ -32,44 +32,48 @@ if ! command -v wandb >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "[ERROR] 未检测到 docker。wandb local 依赖 docker 运行。"
-  exit 1
+USE_WANDB_LOCAL=${USE_WANDB_LOCAL:-auto}
+if [[ "$USE_WANDB_LOCAL" == "auto" ]]; then
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    USE_WANDB_LOCAL=true
+  else
+    USE_WANDB_LOCAL=false
+  fi
 fi
 
-if ! docker info >/dev/null 2>&1; then
-  echo "[ERROR] docker daemon 不可用，请先启动 docker。"
-  exit 1
-fi
+if [[ "$USE_WANDB_LOCAL" == "true" ]]; then
+  if [[ -n "${WANDB_API_KEY:-}" ]]; then
+    wandb login --host "$WANDB_BASE_URL" "$WANDB_API_KEY"
+  else
+    echo "[INFO] 未设置 WANDB_API_KEY，跳过自动登录。若训练时报鉴权错误，请手动执行："
+    echo "       wandb login --host $WANDB_BASE_URL"
+  fi
 
-if [[ -n "${WANDB_API_KEY:-}" ]]; then
-  wandb login --host "$WANDB_BASE_URL" "$WANDB_API_KEY"
+  echo "[INFO] 启动 wandb local（端口 ${WANDB_LOCAL_PORT}）..."
+  wandb local --port "$WANDB_LOCAL_PORT" >/tmp/wandb-local.log 2>&1 &
+  WLOCAL_PID=$!
+
+  cleanup() {
+    if kill -0 "$WLOCAL_PID" >/dev/null 2>&1; then
+      kill "$WLOCAL_PID" >/dev/null 2>&1 || true
+    fi
+  }
+  trap cleanup EXIT
+
+  # 等待本地服务可访问
+  for _ in $(seq 1 30); do
+    if curl -fsS "$WANDB_BASE_URL" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  echo "[INFO] W&B Local 地址: $WANDB_BASE_URL"
+  echo "[INFO] 现在可在浏览器打开该地址查看训练指标。"
 else
-  echo "[INFO] 未设置 WANDB_API_KEY，跳过自动登录。若训练时报鉴权错误，请手动执行："
-  echo "       wandb login --host $WANDB_BASE_URL"
+  export WANDB_MODE=${WANDB_MODE:-offline}
+  echo "[WARN] docker 不可用，跳过 wandb local，使用 WANDB_MODE=$WANDB_MODE 继续训练。"
 fi
-
-echo "[INFO] 启动 wandb local（端口 ${WANDB_LOCAL_PORT}）..."
-wandb local --port "$WANDB_LOCAL_PORT" >/tmp/wandb-local.log 2>&1 &
-WLOCAL_PID=$!
-
-cleanup() {
-  if kill -0 "$WLOCAL_PID" >/dev/null 2>&1; then
-    kill "$WLOCAL_PID" >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup EXIT
-
-# 等待本地服务可访问
-for _ in $(seq 1 30); do
-  if curl -fsS "$WANDB_BASE_URL" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-
-echo "[INFO] W&B Local 地址: $WANDB_BASE_URL"
-echo "[INFO] 现在可在浏览器打开该地址查看训练指标。"
 
 echo "[INFO] 开始 overfit 训练..."
 bash scrips/overfit_qwen3vl_10samples.sh
